@@ -124,7 +124,6 @@
 		}
 
 		// Mix in some randomness from trusted remote sites.
-		$found = false;
 		$trusted = RSG_GetRootSeedURLs();
 		if (!isset($options["urls"]))  $options["urls"] = array();
 		foreach ($options["urls"] as $url => $info)
@@ -144,7 +143,7 @@
 
 			$strength += (3 + (strtolower(substr($url, 0, 8)) == "https://" ? 1 : -1) + (isset($trusted[$origurl]) ? 1 : -1)) * RSG_WriteSeedData($data, $hash, $data2["data"], $info["reduce"]);
 		}
-		if (!$found)  sleep(1);
+		sleep(1);
 
 		// Add some of the previous local functions that might have changed value.
 		if (function_exists("memory_get_usage"))  RSG_WriteSeedData($data, $hash, memory_get_usage(), false);
@@ -158,6 +157,53 @@
 		else  $result = sha1($data);
 
 		return array("success" => true, "result" => $result, "strength" => $strength);
+	}
+
+	// Generates a number of seeds without wasting public URL entropy.
+	// Intended to be used by an application installer.
+	function RSG_GenerateInstallerRootSeeds($numseeds, $size, $options = array())
+	{
+		// Generates the root seed.
+		$result = RSG_GenerateRootSeed($options);
+		$rootseed = $result["result"];
+		$rootrsg = new RSG_Stream;
+		$rootrsg->Init($rootseed);
+
+		// Generate delay stream.
+		$num = 1;
+		$delayseed = bin2hex($rootrsg->RandomBytes(512));
+		$delayrsg = new RSG_Stream;
+		$delayrsg->Init($delayseed);
+		usleep($delayrsg->RandomInt(0, 100000, $num++));
+
+		// Generate second base stream.
+		$keyseed = bin2hex($rootrsg->RandomBytes(512));
+		$basersg = new RSG_Stream;
+		$basersg->Init($keyseed);
+		usleep($delayrsg->RandomInt(0, 100000, $num++));
+
+		// Generate third base stream.
+		$entropyseed = bin2hex($rootrsg->RandomBytes(512));
+		$entropyrsg = new RSG_Stream;
+		$entropyrsg->Init($entropyseed);
+		usleep($delayrsg->RandomInt(0, 100000, $num++));
+
+		// Generate seeds.
+		$result = array(
+			"success" => true,
+			"strength" => $result["strength"],
+			"seeds" => array()
+		);
+
+		while ($numseeds > 0)
+		{
+			$result["seeds"][] = bin2hex($basersg->RandomBytes($size, $entropyrsg->RandomBytes(512) . $numseeds));
+			usleep($delayrsg->RandomInt(0, 100000, $num++));
+
+			$numseeds--;
+		}
+
+		return $result;
 	}
 
 	// Generates random tokens for things like session IDs.
