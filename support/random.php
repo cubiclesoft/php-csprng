@@ -15,29 +15,22 @@
 			$this->fp = false;
 			$this->cryptosafe = $cryptosafe;
 
+			// OpenSSL first.
+			if (function_exists("openssl_random_pseudo_bytes"))
+			{
+				// PHP 5.4.0 introduced native Windows CryptGenRandom() integration via php_win32_get_random_bytes() for performance.
+				@openssl_random_pseudo_bytes(4, $strong);
+				if ($strong)  $this->mode = "openssl";
+			}
+
 			// Locate a (relatively) suitable source of entropy or raise an exception.
 			if (strtoupper(substr(PHP_OS, 0, 3)) === "WIN")
 			{
-				// PHP 5.4.0 and later introduced native Windows CryptGenRandom() integration via php_win32_get_random_bytes().
-				if (PHP_VERSION_ID > 50400 && function_exists("openssl_random_pseudo_bytes"))
-				{
-					// Performance is vastly improved in PHP 5.4.0 and later.
-					@openssl_random_pseudo_bytes(4, $strong);
-					if ($strong)  $this->mode = "openssl";
-				}
-
-				// Require PHP 5.3.x or later.
+				// PHP 5.3.0 introduced native Windows CryptGenRandom() integration via php_win32_get_random_bytes() for functionality.
 				if ($this->mode === false && PHP_VERSION_ID > 50300 && function_exists("mcrypt_create_iv"))  $this->mode = "mcrypt";
 			}
 			else
 			{
-				// OpenSSL first.
-				if (function_exists("openssl_random_pseudo_bytes"))
-				{
-					@openssl_random_pseudo_bytes(4, $strong);
-					if ($strong)  $this->mode = "openssl";
-				}
-
 				if (!$cryptosafe && $this->mode === false && file_exists("/dev/arandom"))
 				{
 					// OpenBSD.  mcrypt doesn't attempt to use this despite claims of higher quality entropy with performance.
