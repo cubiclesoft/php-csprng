@@ -1,267 +1,116 @@
 <?php
-	// Cryptographically Secure Pseudo-Random String Generator (CSPRSG) and CSPRNG.
-	// (C) 2011 CubicleSoft.  All Rights Reserved.
+	// Cryptographically Secure Pseudo-Random String Generator (CSPRSG).
+	// (C) 2014 CubicleSoft.  All Rights Reserved.
 
-	function RSG_GetRootSeedURLs()
+	class CSPRNG
 	{
-		$result = array(
-			"https://www.random.org/integers/?num=100&min=0&max=255&col=10&base=16&format=plain&rnd=new" => array("alt" => "http://www.random.org/integers/?num=100&min=0&max=255&col=10&base=16&format=plain&rnd=new", "reduce" => false),
-			"https://www.fourmilab.ch/cgi-bin/Hotbits?nbytes=128&fmt=bin" => array("alt" => "http://www.fourmilab.ch/cgi-bin/Hotbits?nbytes=128&fmt=bin", "reduce" => false),
-			"https://www.grc.com/passwords.htm" => array("alt" => "", "reduce" => true)
-		);
+		private static $alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+		private $mode, $fp, $highquality;
 
-		return $result;
-	}
-
-	function RSG_Translate()
-	{
-		$args = func_get_args();
-		if (!count($args))  return "";
-
-		return call_user_func_array((defined("CS_TRANSLATE_FUNC") && function_exists(CS_TRANSLATE_FUNC) ? CS_TRANSLATE_FUNC : "sprintf"), $args);
-	}
-
-	function RSG_GetURL($url)
-	{
-		// First attempt to load via the Ultimate Web Scraper Toolkit.
-		if (function_exists("fsockopen") && function_exists("GetWebUserAgent") && function_exists("RetrieveWebpage"))
+		// High quality only uses the best quality sources, but those sources can hang the application.
+		public function __construct($highquality = false)
 		{
-			$options2 = array(
-				"headers" => array(
-					"User-Agent" => GetWebUserAgent("Firefox"),
-					"Accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-					"Accept-Language" => "en-us,en;q=0.5",
-					"Accept-Charset" => "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
-					"Cache-Control" => "max-age=0"
-				)
-			);
+			$this->mode = false;
+			$this->fp = false;
+			$this->highquality = $highquality;
 
-			$result = RetrieveWebpage($url, $options2);
-			if (!$result["success"])  return array("success" => false, "error" => RSG_Translate("Unable to retrieve the URL content.  %s", $result["error"]));
-			if ($result["response"]["code"] != 200)  return array("success" => false, "error" => RSG_Translate("Unable to retrieve the URL content.  Server returned:  %s %s", $result["response"]["code"], $result["response"]["meaning"]));
-
-			return array("success" => true, "data" => $result["body"], "headers" => $result["headers"], "url" => $url);
-		}
-
-		// Fallback to fopen-wrappers.
-		$result = @file_get_contents($url);
-		if ($result !== false)  return array("success" => true, "data" => $result, "headers" => array(), "url" => $url);
-
-		return array("success" => false, "error" => RSG_Translate("Unable to retrieve the URL content.  Unable to find a suitable function to read the URL."));
-	}
-
-	function RSG_WriteSeedData(&$data, &$hash, $str, $reduce = true)
-	{
-		if (is_resource($hash))  hash_update($hash, $str);
-		else if ($reduce)  $data .= pack("H*", sha1($str));
-		else  $data .= $str;
-
-		return 1;
-	}
-
-	// Generates a cryptographically secure random string for use as a root seed/secret key.
-	function RSG_GenerateRootSeed($options = array())
-	{
-		$data = "";
-		$hash = (function_exists("hash_init") ? hash_init("sha512") : false);
-		$strength = (is_resource($hash) ? 1 : 0);
-
-		// Start with some weak sauce.
-		$strength += RSG_WriteSeedData($data, $hash, uniqid(mt_rand(), true));
-
-		// Mix in all available request data.
-		RSG_WriteSeedData($data, $hash, serialize($_REQUEST));
-		RSG_WriteSeedData($data, $hash, serialize($_GET));
-		RSG_WriteSeedData($data, $hash, serialize($_POST));
-		RSG_WriteSeedData($data, $hash, serialize($_COOKIE));
-		RSG_WriteSeedData($data, $hash, serialize($_FILES));
-		RSG_WriteSeedData($data, $hash, serialize($_SERVER));
-		RSG_WriteSeedData($data, $hash, serialize($_ENV));
-
-		// Add some local functions that may or may not exist.
-		if (function_exists("memory_get_usage"))  $strength += 0.1 * RSG_WriteSeedData($data, $hash, memory_get_usage(), false);
-		if (function_exists("memory_get_peak_usage"))  $strength += 0.1 * RSG_WriteSeedData($data, $hash, memory_get_peak_usage(), false);
-		if (function_exists("getrusage"))  $strength += 0.1 * RSG_WriteSeedData($data, $hash, serialize(getrusage()), false);
-		if (function_exists("posix_times"))
-		{
-			$data2 = serialize(posix_times());
-			$data2 .= serialize(posix_getpwuid(posix_getuid()));
-			$data2 .= serialize(posix_getpwuid(posix_geteuid()));
-			$data2 .= serialize(posix_getgrgid(posix_getgid()));
-			$data2 .= serialize(posix_getgrgid(posix_getegid()));
-			foreach (posix_getgroups() as $gid)  $data2 .= serialize(posix_getgrgid($gid));
-			$data2 .= posix_getpid();
-			$data2 .= posix_getsid(posix_getpid());
-
-			$strength += 0.1 * RSG_WriteSeedData($data, $hash, $data2);
-		}
-		RSG_WriteSeedData($data, $hash, php_sapi_name() . zend_version() . phpversion() . get_current_user() . getmypid(), false);
-		RSG_WriteSeedData($data, $hash, serialize(get_loaded_extensions()));
-		RSG_WriteSeedData($data, $hash, serialize(get_included_files()));
-		RSG_WriteSeedData($data, $hash, serialize(ini_get_all()));
-		RSG_WriteSeedData($data, $hash, serialize(get_defined_constants()));
-		RSG_WriteSeedData($data, $hash, serialize(get_defined_functions()));
-		$data2 = get_declared_classes();
-		RSG_WriteSeedData($data, $hash, serialize($data2));
-		foreach ($data2 as $class)
-		{
-			RSG_WriteSeedData($data, $hash, serialize(get_class_vars($class)));
-			RSG_WriteSeedData($data, $hash, serialize(get_class_methods($class)));
-		}
-		unset($data2);
-
-		// Drop in the kitchen sink.  Some things repeated from above but this is the kitchen sink after all.
-		ob_start();
-		phpinfo();
-		RSG_WriteSeedData($data, $hash, ob_get_contents());
-		ob_end_clean();
-
-		// Mix in some randomness with local crypto options.
-		if (function_exists("openssl_random_pseudo_bytes"))
-		{
-			$data2 = @openssl_random_pseudo_bytes(4096, $strong);
-			if ($data2 !== false && $strong)  $strength += 2 * RSG_WriteSeedData($data, $hash, $data2);
-		}
-
-		// Mix in some randomness from trusted remote sites.
-		$trusted = RSG_GetRootSeedURLs();
-		if (!isset($options["urls"]))  $options["urls"] = array();
-		foreach ($options["urls"] as $url => $info)
-		{
-			$origurl = $url;
-			$data2 = RSG_GetURL($url);
-			if (!$data2["success"])
+			// Locate a (relatively) suitable source of entropy or raise an exception.
+			if (strtoupper(substr(PHP_OS, 0, 3)) === "WIN")
 			{
-				if ($info["alt"] != "")
+				// PHP 5.4.0 and later introduced native Windows CryptGenRandom() integration via php_win32_get_random_bytes().
+				if (PHP_VERSION_ID > 50400 && function_exists("openssl_random_pseudo_bytes"))
 				{
-					$url = $info["alt"];
-					$data2 = RSG_GetURL($url);
+					// Performance is vastly improved in PHP 5.4.0 and later.
+					@openssl_random_pseudo_bytes(4, $strong);
+					if ($strong)  $this->mode = "openssl";
 				}
 
-				if (!$data2["success"])  continue;
+				// Require PHP 5.3.x or later.
+				if ($this->mode === false && PHP_VERSION_ID > 50300 && function_exists("mcrypt_create_iv"))  $this->mode = "mcrypt";
+			}
+			else
+			{
+				// OpenSSL first.
+				if (function_exists("openssl_random_pseudo_bytes"))
+				{
+					@openssl_random_pseudo_bytes(4, $strong);
+					if ($strong)  $this->mode = "openssl";
+				}
+
+				if ($this->mode === false && file_exists("/dev/arandom"))
+				{
+					// OpenBSD.  mcrypt doesn't attempt to use this despite claims of higher quality entropy with performance.
+					$this->fp = @fopen("/dev/arandom", "rb");
+					if ($this->fp !== false)  $this->mode = "file";
+				}
+				else if ($this->mode === false && function_exists("mcrypt_create_iv"))
+				{
+					// Reasonable fallback if available.
+					$this->mode = "mcrypt";
+				}
+				else if ($highquality && $this->mode === false && file_exists("/dev/random"))
+				{
+					// Everything else.
+					$this->fp = @fopen("/dev/random", "rb");
+					if ($this->fp !== false)  $this->mode = "file";
+				}
+				else if (!$highquality && $this->mode === false && file_exists("/dev/urandom"))
+				{
+					// Everything else.
+					$this->fp = @fopen("/dev/urandom", "rb");
+					if ($this->fp !== false)  $this->mode = "file";
+				}
 			}
 
-			$strength += (3 + (strtolower(substr($url, 0, 8)) == "https://" ? 1 : -1) + (isset($trusted[$origurl]) ? 1 : -1)) * RSG_WriteSeedData($data, $hash, $data2["data"], $info["reduce"]);
-		}
-		sleep(1);
-
-		// Add some of the previous local functions that might have changed value.
-		if (function_exists("memory_get_usage"))  RSG_WriteSeedData($data, $hash, memory_get_usage(), false);
-		if (function_exists("memory_get_peak_usage"))  RSG_WriteSeedData($data, $hash, memory_get_peak_usage(), false);
-		if (function_exists("getrusage"))  RSG_WriteSeedData($data, $hash, serialize(getrusage()), false);
-		if (function_exists("posix_times"))  RSG_WriteSeedData($data, $hash, serialize(posix_times()), false);
-
-		// Finalize the result.
-		$strength += 0.6 * RSG_WriteSeedData($data, $hash, uniqid(mt_rand(), true));
-		if (is_resource($hash))  $result = hash_final($hash);
-		else  $result = sha1($data);
-
-		return array("success" => true, "result" => $result, "strength" => $strength);
-	}
-
-	// Generates a number of seeds without wasting public URL entropy.
-	// Intended to be used by an application installer.
-	function RSG_GenerateInstallerRootSeeds($numseeds, $size, $options = array())
-	{
-		// Generates the root seed.
-		$result = RSG_GenerateRootSeed($options);
-		$rootseed = $result["result"];
-		$rootrsg = new RSG_Stream;
-		$rootrsg->Init($rootseed);
-
-		// Generate delay stream.
-		$num = 1;
-		$delayseed = bin2hex($rootrsg->RandomBytes(512));
-		$delayrsg = new RSG_Stream;
-		$delayrsg->Init($delayseed);
-		usleep($delayrsg->RandomInt(0, 100000, $num++));
-
-		// Generate second base stream.
-		$keyseed = bin2hex($rootrsg->RandomBytes(512));
-		$basersg = new RSG_Stream;
-		$basersg->Init($keyseed);
-		usleep($delayrsg->RandomInt(0, 100000, $num++));
-
-		// Generate third base stream.
-		$entropyseed = bin2hex($rootrsg->RandomBytes(512));
-		$entropyrsg = new RSG_Stream;
-		$entropyrsg->Init($entropyseed);
-		usleep($delayrsg->RandomInt(0, 100000, $num++));
-
-		// Generate seeds.
-		$result = array(
-			"success" => true,
-			"strength" => $result["strength"],
-			"seeds" => array()
-		);
-
-		while ($numseeds > 0)
-		{
-			$result["seeds"][] = bin2hex($basersg->RandomBytes($size, $entropyrsg->RandomBytes(512) . $numseeds));
-			usleep($delayrsg->RandomInt(0, 100000, $num++));
-
-			$numseeds--;
+			// Throw an exception if unable to find a suitable entropy source.
+			if ($this->mode === false)
+			{
+				throw new Exception(CSPRNG::RNG_Translate("Unable to locate a suitable entropy source."));
+				exit();
+			}
 		}
 
-		return $result;
-	}
-
-	// Generates random tokens for things like session IDs.
-	function RSG_GenerateToken($rootseed, $entropy = "")
-	{
-		$data = "";
-		$hash = (function_exists("hash_init") ? hash_init("sha512") : false);
-
-		RSG_WriteSeedData($data, $hash, uniqid(mt_rand(), true));
-		if ($entropy != "")  RSG_WriteSeedData($data, $hash, $entropy);
-		RSG_WriteSeedData($data, $hash, pack("H*", $rootseed), false);
-
-		if (is_resource($hash))  $result = hash_final($hash);
-		else  $result = sha1($data);
-
-		return $result;
-	}
-
-	// Generates a stream of random numbers and strings.
-	class RSG_Stream
-	{
-		private $rootseed, $lastseed, $lastseedpos, $entropy, $nextnum, $bitsleft;
-
-		public function Init($rootseed)
+		public function __destruct()
 		{
-			$this->rootseed = $rootseed;
-			$this->nextnum = 0;
-			$this->lastseed = "";
-			$this->lastseedpos = 0;
-			$this->entropy = "";
-			$this->bitsleft = array();
+			if ($this->mode === "file")  fclose($this->fp);
 		}
 
-		public function RandomBytes($length, $entropy = "")
+		public function GetBytes($length)
 		{
-			$this->entropy .= $entropy;
+			if ($this->mode === false)  return false;
+
+			$length = (int)$length;
+			if ($length < 1)  return false;
 
 			$result = "";
-
-			while (strlen($result) < $length)
+			do
 			{
-				if ($this->lastseedpos >= strlen($this->lastseed))  $this->AddMoreBits();
-
-				if (strlen($result) < $length && $this->lastseedpos < strlen($this->lastseed))
+				switch ($this->mode)
 				{
-					$num = min($length - strlen($result), strlen($this->lastseed) - $this->lastseedpos);
-					$result .= substr($this->lastseed, $this->lastseedpos, $num);
-					$this->lastseedpos += $num;
+					case "openssl":  $data = @openssl_random_pseudo_bytes($length, $strong);  if (!$strong)  $data = false;  break;
+					case "mcrypt":  $data = @mcrypt_create_iv($length, ($this->highquality ? MCRYPT_DEV_RANDOM : MCRYPT_DEV_URANDOM));  break;
+					case "file":  $data = @fread($this->fp, $length);  break;
+					default:  $data = false;
 				}
-			}
+				if ($data === false)  return false;
+
+				$result .= $data;
+			} while (strlen($result) < $length);
 
 			return $result;
 		}
 
-		public function RandomInt($min, $max, $entropy = "")
+		public function GenerateToken()
 		{
-			$this->entropy .= $entropy;
+			$data = $this->GetBytes(64);
+			if ($data === false)  return false;
 
+			return bin2hex($data);
+		}
+
+		// Get a random number between $min and $max (inclusive).
+		public function GetInt($min, $max)
+		{
 			$min = (int)$min;
 			$max = (int)$max;
 			if ($max < $min)  return false;
@@ -271,101 +120,53 @@
 
 			$bits = 1;
 			while ((1 << $bits) <= $range)  $bits++;
-			$result = 0;
 
-			$bytes = (int)(($bits + 7) / 8);
-			$bytes2 = 1;
-			$mask = (1 << (($bytes - 1) * 8)) - 1;
-			$mask2 = (1 << $bits) - 1;
+			$numbytes = (int)(($bits + 7) / 8);
+			$mask = (1 << $bits) - 1;
 
 			do
 			{
-				$result = $result & $mask;
-				$bytes2--;
+				$data = $this->GetBytes($numbytes);
+				if ($data === false)  return false;
 
-				while ($bytes2 < $bytes)
+				$result = 0;
+				for ($x = 0; $x < $numbytes; $x++)
 				{
-					if ($this->lastseedpos >= strlen($this->lastseed))  $this->AddMoreBits();
-
-					if ($this->lastseedpos < strlen($this->lastseed))
-					{
-						$result = ($result << 8) | ord(substr($this->lastseed, $this->lastseedpos, 1));
-						$bytes2++;
-						$this->lastseedpos++;
-					}
+					$result = ($result * 256) + ord($data{$x});
 				}
 
-				$result = $result & $mask2;
+				$result = $result & $mask;
 			} while ($result >= $range);
 
 			return $result + $min;
 		}
 
-		private function AddMoreBits()
+		// Convenience method to generate a random alphanumeric string.
+		public function GenerateString($size = 32)
 		{
-			$this->lastseed = pack("H*", RSG_GenerateToken($this->rootseed, $this->entropy . $this->nextnum . $this->lastseed));
-			$this->lastseedpos = 0;
-			$this->nextnum++;
-			$this->entropy = "";
-		}
-	}
-
-	// Generates a normal distribution of random numbers across a fixed range.
-	class RSG_NormalizedStream
-	{
-		private $randgen, $min, $max, $balancer, $counter;
-
-		public function Init($min, $max, $rootseed)
-		{
-			if ($max < $min)  return false;
-
-			$this->min = $min;
-			$this->max = $max;
-			$this->balancer = array();
-			$range = $max - $min;
-			for ($x = 0; $x <= $range; $x++)  $this->balancer[$x] = $min + $x;
-
-			$this->randgen = new RSG_Stream();
-			$this->randgen->Init($rootseed);
-			$this->counter = 0;
-
-			return true;
-		}
-
-		public function RandomInt($entropy = "")
-		{
-			$num = $this->randgen->RandomInt(0, count($this->balancer) - 1, $entropy . $this->counter);
-			$entropy = "";
-			$this->counter++;
-
-			$result = $this->balancer[$num];
-			array_splice($this->balancer, $num, 1);
-
-			if (!count($this->balancer))
+			$result = "";
+			for ($x = 0; $x < $size; $x++)
 			{
-				$range = $this->max - $this->min;
-				for ($x = 0; $x <= $range; $x++)  $this->balancer[$x] = $this->min + $x;
+				$data = $this->GetInt(0, 61);
+				if ($data === false)  return false;
+
+				$result .= self::$alphanum{$data};
 			}
 
 			return $result;
 		}
-	}
 
-	// Convenience function to generate a random alphanumeric string.
-	function RSG_GenerateRandString($seed, $entropy = "", $size = 32)
-	{
-		$alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-		$rsg = new RSG_Stream;
-		$rsg->Init($seed);
-		$last = $entropy;
-		$result = "";
-		for ($x = 0; $x < $size; $x++)
+		public function GetMode()
 		{
-			$rand = $rsg->RandomInt(0, 61, $last . $x);
-			$result .= substr($alphanum, $rand, 1);
-			$last = $rand;
+			return $this->mode;
 		}
 
-		return $result;
+		protected static function RNG_Translate()
+		{
+			$args = func_get_args();
+			if (!count($args))  return "";
+
+			return call_user_func_array((defined("CS_TRANSLATE_FUNC") && function_exists(CS_TRANSLATE_FUNC) ? CS_TRANSLATE_FUNC : "sprintf"), $args);
+		}
 	}
 ?>
