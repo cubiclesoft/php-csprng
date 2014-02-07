@@ -1,18 +1,19 @@
 <?php
-	// Cryptographically Secure Pseudo-Random String Generator (CSPRSG).
+	// Cryptographically Secure Pseudo-Random String Generator (CSPRSG) and CSPRNG.
 	// (C) 2014 CubicleSoft.  All Rights Reserved.
 
 	class CSPRNG
 	{
 		private static $alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-		private $mode, $fp, $highquality;
+		private $mode, $fp, $cryptosafe;
 
-		// High quality only uses the best quality sources, but those sources can hang the application.
-		public function __construct($highquality = false)
+		// Crypto-safe uses the best quality sources (e.g. /dev/random), but those sources can hang the application.
+		// Will raise an exception if the constructor can't find a suitable source of randomness.
+		public function __construct($cryptosafe = false)
 		{
 			$this->mode = false;
 			$this->fp = false;
-			$this->highquality = $highquality;
+			$this->cryptosafe = $cryptosafe;
 
 			// Locate a (relatively) suitable source of entropy or raise an exception.
 			if (strtoupper(substr(PHP_OS, 0, 3)) === "WIN")
@@ -37,7 +38,7 @@
 					if ($strong)  $this->mode = "openssl";
 				}
 
-				if ($this->mode === false && file_exists("/dev/arandom"))
+				if (!$cryptosafe && $this->mode === false && file_exists("/dev/arandom"))
 				{
 					// OpenBSD.  mcrypt doesn't attempt to use this despite claims of higher quality entropy with performance.
 					$this->fp = @fopen("/dev/arandom", "rb");
@@ -48,13 +49,13 @@
 					// Reasonable fallback if available.
 					$this->mode = "mcrypt";
 				}
-				else if ($highquality && $this->mode === false && file_exists("/dev/random"))
+				else if ($cryptosafe && $this->mode === false && file_exists("/dev/random"))
 				{
 					// Everything else.
 					$this->fp = @fopen("/dev/random", "rb");
 					if ($this->fp !== false)  $this->mode = "file";
 				}
-				else if (!$highquality && $this->mode === false && file_exists("/dev/urandom"))
+				else if (!$cryptosafe && $this->mode === false && file_exists("/dev/urandom"))
 				{
 					// Everything else.
 					$this->fp = @fopen("/dev/urandom", "rb");
@@ -88,7 +89,7 @@
 				switch ($this->mode)
 				{
 					case "openssl":  $data = @openssl_random_pseudo_bytes($length, $strong);  if (!$strong)  $data = false;  break;
-					case "mcrypt":  $data = @mcrypt_create_iv($length, ($this->highquality ? MCRYPT_DEV_RANDOM : MCRYPT_DEV_URANDOM));  break;
+					case "mcrypt":  $data = @mcrypt_create_iv($length, ($this->cryptosafe ? MCRYPT_DEV_RANDOM : MCRYPT_DEV_URANDOM));  break;
 					case "file":  $data = @fread($this->fp, $length);  break;
 					default:  $data = false;
 				}
