@@ -91,7 +91,7 @@
 				$result .= $data;
 			} while (strlen($result) < $length);
 
-			return $result;
+			return substr($result, 0, $length);
 		}
 
 		public function GenerateToken()
