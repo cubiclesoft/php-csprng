@@ -37,18 +37,21 @@
 					$this->fp = @fopen("/dev/arandom", "rb");
 					if ($this->fp !== false)  $this->mode = "file";
 				}
-				else if ($this->mode === false && function_exists("mcrypt_create_iv"))
+
+				if ($this->mode === false && function_exists("mcrypt_create_iv"))
 				{
 					// Reasonable fallback if available.
 					$this->mode = "mcrypt";
 				}
-				else if ($cryptosafe && $this->mode === false && file_exists("/dev/random"))
+
+				if ($cryptosafe && $this->mode === false && file_exists("/dev/random"))
 				{
 					// Everything else.
 					$this->fp = @fopen("/dev/random", "rb");
 					if ($this->fp !== false)  $this->mode = "file";
 				}
-				else if (!$cryptosafe && $this->mode === false && file_exists("/dev/urandom"))
+
+				if (!$cryptosafe && $this->mode === false && file_exists("/dev/urandom"))
 				{
 					// Everything else.
 					$this->fp = @fopen("/dev/urandom", "rb");
