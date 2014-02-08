@@ -38,12 +38,6 @@
 					if ($this->fp !== false)  $this->mode = "file";
 				}
 
-				if ($this->mode === false && function_exists("mcrypt_create_iv"))
-				{
-					// Reasonable fallback if available.
-					$this->mode = "mcrypt";
-				}
-
 				if ($cryptosafe && $this->mode === false && file_exists("/dev/random"))
 				{
 					// Everything else.
@@ -56,6 +50,12 @@
 					// Everything else.
 					$this->fp = @fopen("/dev/urandom", "rb");
 					if ($this->fp !== false)  $this->mode = "file";
+				}
+
+				if ($this->mode === false && function_exists("mcrypt_create_iv"))
+				{
+					// mcrypt_create_iv() is last because it opens and closes a file handle every single call.
+					$this->mode = "mcrypt";
 				}
 			}
 
