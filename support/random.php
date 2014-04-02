@@ -97,9 +97,9 @@
 			return substr($result, 0, $length);
 		}
 
-		public function GenerateToken()
+		public function GenerateToken($length = 64)
 		{
-			$data = $this->GetBytes(64);
+			$data = $this->GetBytes($length);
 			if ($data === false)  return false;
 
 			return bin2hex($data);
