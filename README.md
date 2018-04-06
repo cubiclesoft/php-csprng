@@ -12,9 +12,7 @@ Features
 * Designed for relatively painless integration into your project.
 * Sits on GitHub for all of that pull request and issue tracker goodness to easily submit changes and ideas respectively.
 
-More Information
-----------------
+Usage
+-----
 
-Documentation, examples, and official downloads of this project sit on the Barebones CMS website:
-
-http://barebonescms.com/documentation/csprng/
+Documentation and examples can be found in the 'docs' directory of this repository.

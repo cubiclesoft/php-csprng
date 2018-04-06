@@ -42,6 +42,16 @@ Returns:  A string containing the exact number of bytes requested or a boolean o
 
 This function retrieves the number of requested bytes from the source selected in the constructor.
 
+```php
+<?php
+	require_once "support/random.php";
+
+	$rng = new CSPRNG();
+	$bytes = $rng->GetBytes(4096);
+	echo bin2hex($bytes) . "\n";
+?>
+```
+
 CSPRNG::GenerateToken()
 -----------------------
 
@@ -52,6 +62,17 @@ Parameters:  None.
 Returns:  A string containing a token (hex encoded) on success or a boolean of false on failure.
 
 This function retrieves a token suitable for a wide variety of uses such as a session token.
+
+Example usage:
+
+```php
+<?php
+	require_once "support/random.php";
+
+	$rng = new CSPRNG();
+	echo $rng->GenerateToken() . "\n";
+?>
+```
 
 CSPRNG::GetInt($min, $max)
 --------------------------
@@ -67,6 +88,19 @@ Returns:  Returns a random integer from `$min` to `$max` (inclusive) on success,
 
 This function returns a random integer.  Random integer selection is performed by throwing out integers outside the desired range (the right way) instead of modulus arithmetic (the wrong way).
 
+```php
+<?php
+	require_once "support/random.php";
+
+	$rng = new CSPRNG();
+	for ($x = 0; $x < 100; $x++)
+	{
+		$result = $rng->GetInt(0, 40);
+		echo $result . "\n";
+	}
+?>
+```
+
 CSPRNG::GenerateString($size = 32)
 ----------------------------------
 
@@ -79,6 +113,18 @@ Parameters:
 Returns:  A string containing randomly selected alphanumeric characters.
 
 This function uses `CSPRNG::GetInt()` to generate a random string with only alphanumeric characters (0-9, A-Z, and a-z).  Useful for generating random strings of various lengths.
+
+Example usage:
+
+```php
+<?php
+	require_once "support/random.php";
+
+	$rng = new CSPRNG();
+	$str = $rng->GenerateString();
+	echo $str . "\n";
+?>
+```
 
 CSPRNG::GetMode()
 -----------------
