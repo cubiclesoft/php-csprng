@@ -11,10 +11,13 @@ Example usage:
 <?php
 	require_once "support/random.php";
 
+	// Tokens.
 	$rng = new CSPRNG(true);
 	echo $rng->GenerateToken() . "\n";
 ?>
 ```
+
+Additional examples are available below.
 
 CSPRNG::__construct($cryptosafe = false)
 ----------------------------------------
@@ -125,6 +128,44 @@ Example usage:
 	echo $str . "\n";
 ?>
 ```
+
+CSPRNG::GenerateWord(&$freqmap, $len, $separator = "-")
+-------------------------------------------------------
+
+Access:  public
+
+Parameters:
+
+* $freqmap - A reference to an array containing a frenquency map.
+* $len - An integer specifying the length of the returned string in bytes.
+* $separator - A string specifying the character(s) to use to separate restarts (Default is "-").
+
+Returns:  A string containing a randomly generated word.
+
+This function implements a state engine that generates a random Unicode word based on the input frequency distribution.  Useful for generating random, mostly pronouncible, but nonsensical words of various lengths for use as a password, a project codename, etc.
+
+Depending on the inputs, it is possible but extremely rare for the state engine to enter a failure state.  The state engine compensates by inserting the separator into the output string and going back to the starting state.
+
+Example usage:
+
+```php
+<?php
+	require_once "support/random.php";
+
+	$rng = new CSPRNG();
+
+	$freqmap = json_decode(file_get_contents("support/en_us_freq_3.json"), true);
+
+	$words = array();
+	for ($x = 0; $x < 3; $x++)  $words[] = $rng->GenerateWord($freqmap, $rng->GetInt(4, 8));
+
+	echo "New password:  " . implode("-", $words) . "\n";
+?>
+```
+
+There is a tool in this repository `src/process_dictionary.php` which generates CSPRNG-compliant frequency distributions from dictionaries.  A dictionary can be almost anything (e.g. names of cities, medical terms) in any language.  The tool generates Markov-like chains but with an awareness that words have a start, middle, and end.  The generated `support/en_us_freq_3.json` file included in this repository provides an excellent balance between system resource usage and producing mostly readable words.  `support/en_us_freq_4.json` is even better but requires a lot more system resources.
+
+Looking for the dictionary used for the above?  See the [SSO server/client](https://github.com/cubiclesoft/sso-server/blob/master/support/dictionary.txt).
 
 CSPRNG::GetMode()
 -----------------
