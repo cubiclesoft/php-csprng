@@ -186,7 +186,7 @@
 				$line2 = trim($line);
 				if ($line2 !== "")
 				{
-					if ($line2{0} !== "]" && $line2{0} !== "}" && substr($line2, -1) !== "{" && substr($line2, -1) !== "[")
+					if ($line2[0] !== "]" && $line2[0] !== "}" && substr($line2, -1) !== "{" && substr($line2, -1) !== "[")
 					{
 						$y = strlen($line2);
 						if ($lastline === false && $y < $compact)  $lastline = $line;
@@ -206,7 +206,7 @@
 					else
 					{
 						if ($lastline === false)  $lines[] = $line;
-						else if (($line2{0} === "]" || $line2{0} === "}") && in_array(substr($lines[count($lines) - 1], -1), array("{", "[")))
+						else if (($line2[0] === "]" || $line2[0] === "}") && in_array(substr($lines[count($lines) - 1], -1), array("{", "[")))
 						{
 							$lines[count($lines) - 1] .= " " . trim($lastline) . " " . $line2;
 							$lastline = false;
