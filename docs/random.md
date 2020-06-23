@@ -129,6 +129,41 @@ Example usage:
 ?>
 ```
 
+CSPRNG::GenerateWordLite(&$freqmap, $len)
+-----------------------------------------
+
+Access:  public
+
+Parameters:
+
+* $freqmap - A reference to an array containing a lite frequency map.
+* $len - An integer specifying the length of the returned string in bytes.
+
+Returns:  A string containing a randomly generated word.
+
+This function implements generates random words that alternate between consonants and vowels based on the input frequency distribution.  Useful for generating random, mostly pronouncible, but nonsensical words of various lengths for use as a password, a project codename, etc.
+
+Example usage:
+
+```php
+<?php
+	require_once "support/random.php";
+
+	$rng = new CSPRNG();
+
+	$freqmap = json_decode(file_get_contents("support/en_us_lite.json"), true);
+
+	$words = array();
+	for ($x = 0; $x < 3; $x++)  $words[] = $rng->GenerateWordLite($freqmap, $rng->GetInt(4, 8));
+
+	echo "New password:  " . implode("-", $words) . "\n";
+?>
+```
+
+There is a tool in this repository `src/process_dictionary_lite.php` which generates CSPRNG-compliant lite frequency distributions of consonants and vowels from dictionaries.  A dictionary can be almost anything (e.g. names of cities, medical terms) in any language.
+
+Looking for the dictionary used for the above?  See the [SSO server/client](https://github.com/cubiclesoft/sso-server/blob/master/support/dictionary.txt).
+
 CSPRNG::GenerateWord(&$freqmap, $len, $separator = "-")
 -------------------------------------------------------
 
@@ -136,7 +171,7 @@ Access:  public
 
 Parameters:
 
-* $freqmap - A reference to an array containing a frenquency map.
+* $freqmap - A reference to an array containing a frequency map.
 * $len - An integer specifying the length of the returned string in bytes.
 * $separator - A string specifying the character(s) to use to separate restarts (Default is "-").
 
