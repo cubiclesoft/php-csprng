@@ -174,7 +174,7 @@
 	// Converts data to a human-readable JSON string.
 	function ConvertDataToUserJSON($data, $compact = 0)
 	{
-		$data = str_replace("    ", "\t", json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+		$data = preg_replace_callback('/^\s+/m', function ($match) { return str_repeat("\t", strlen($match[0]) / 4); }, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
 		if ($compact > 0)
 		{
