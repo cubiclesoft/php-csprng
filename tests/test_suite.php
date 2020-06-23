@@ -1,6 +1,6 @@
 <?php
 	// Test suite.
-	// (C) 2018 CubicleSoft.  All Rights Reserved.
+	// (C) 2020 CubicleSoft.  All Rights Reserved.
 
 	if (!isset($_SERVER["argc"]) || !$_SERVER["argc"])
 	{
@@ -30,6 +30,18 @@
 
 	echo "Random alphanumeric string:  " . $rng->GenerateString(64) . "\n";
 	echo "Random alphanumeric string:  " . $rng2->GenerateString(64) . "\n";
+	echo "\n";
+
+	echo "Loading en-us lite frequency map...";
+	$freqmap = json_decode(file_get_contents($rootpath . "/../support/en_us_lite.json"), true);
+	echo " [Done]\n";
+	echo "\n";
+
+	echo "Randomly generated word (lite):  " . $rng->GenerateWordLite($freqmap, 8) . "\n";
+	echo "Randomly generated word (lite):  " . $rng2->GenerateWordLite($freqmap, 8) . "\n";
+	echo "\n";
+
+	echo "Randomly generated password (lite):  " . $rng->GenerateWordLite($freqmap, $rng->GetInt(4, 7)) . "-" . $rng->GenerateWordLite($freqmap, $rng->GetInt(4, 7)) . "-" . $rng->GenerateWordLite($freqmap, $rng->GetInt(4, 7)) . "\n";
 	echo "\n";
 
 	echo "Loading en-us frequency map with length/threshold 3...";
