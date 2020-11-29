@@ -3,7 +3,7 @@ Cross-Platform CSPRNG
 
 A PHP library that utilizes available CSPRNGs and a set of convenience functions for generating cryptographically secure random tokens, numbers, strings, and words under a MIT or LGPL license.  Works under a wide variety of web hosts including Windows.
 
-[![Donate](https://cubiclesoft.com/res/donate-shield.png)](https://cubiclesoft.com/donate/)
+[![Donate](https://cubiclesoft.com/res/donate-shield.png)](https://cubiclesoft.com/donate/) [![Discord](https://img.shields.io/discord/777282089980526602?label=chat&logo=discord)](https://cubiclesoft.com/product-support/github/)
 
 Features
 --------
